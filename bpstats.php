@@ -48,6 +48,7 @@ if ($data) {
 		$pos = 0;
 		$offset = 0;
 		$limit = 100;
+		$processed_transaction_ids = array();
 
 		$max_account_action_seq = 0;
 
@@ -63,9 +64,11 @@ if ($data) {
 			foreach ($actions->actions as $key => $action) {
 				if ($action->action_trace->act->account == 'fio.token'
 					&& $action->action_trace->act->name == 'transfer'
-					&& $action->action_trace->act->data->memo == "Paying producer from treasury.") {
+					&& $action->action_trace->act->data->memo == "Paying producer from treasury."
+					&& !in_array($action->action_trace->trx_id, $processed_transaction_ids)) {
 					$currency = explode(" ", $action->action_trace->act->data->quantity);
 					$amount_earned += $currency[0];
+					$processed_transaction_ids[] = $action->action_trace->trx_id;
 				}
 				if ($fio_bps[$actor]['reg_producer_time'] == 0
 					&& $action->action_trace->act->account == 'eosio'
