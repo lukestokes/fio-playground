@@ -8,6 +8,8 @@ $client = new EOSClient('http://fio.greymass.com');
 
 $fio_bps = array();
 
+$token_price = 0.227;
+
 $filename = "bp_data_cache.txt";
 $data = @file_get_contents($filename);
 if ($data) {
@@ -23,7 +25,7 @@ if ($data) {
 		if ($producer->is_active) {
 			$fio_bps[$producer->owner] = array();
 			$fio_bps[$producer->owner]['owner'] = $producer->owner;
-			$fio_bps[$producer->owner]['fio_address'] = $producer->fio_address;
+			$fio_bps[$producer->owner]['fio_address'] = trim($producer->fio_address);
 			$fio_bps[$producer->owner]['actor'] = $producer->owner;
 			$fio_bps[$producer->owner]['total_votes'] = $producer->total_votes;
 			$fio_bps[$producer->owner]['last_claim_time'] = $producer->last_claim_time;
@@ -82,6 +84,7 @@ if ($data) {
 		}
 		print "\nAccount Actions: $max_account_action_seq\n";
 		$fio_bps[$actor]['bp_rewards'] = $amount_earned;
+		$fio_bps[$actor]['bp_rewards_usd'] = ($amount_earned * $token_price);
 		//print_r($fio_bps[$actor]);
 	}
 
@@ -92,13 +95,12 @@ if ($data) {
 
 
 print "\n\n\n\n";
-print str_repeat("-",110) . "\n";
-
-$format = "%-12s: %-25s %6s: %15s %17s %13s %14s";
+print str_repeat("-",114) . "\n";
+$format = "%-12s: %-25s %2s: %21s %17s %13s %14s";
 printf($format,"owner","FIO Address","Rank","Claimed Rewards","Days Registered","Pay Per Day","Last Claimed");
-print "\n" . str_repeat("-",110) . "\n";
+print "\n" . str_repeat("-",114) . "\n";
 $rank = 1;
-$format = "%-12s: %-25s %6g: %15d %17s %13d %14s";
+$format = "%-12s: %-25s %2g: %9d ($%6d USD) %17s %13d %14s";
 foreach ($fio_bps as $actor => $bp) {
 	$datetime1 = date_create($fio_bps[$actor]['reg_producer_time']);
 	$datetime2 = date_create();
@@ -114,6 +116,7 @@ foreach ($fio_bps as $actor => $bp) {
 		$fio_bps[$actor]['fio_address'],
 		$rank,
 		$fio_bps[$actor]['bp_rewards'],
+                $fio_bps[$actor]['bp_rewards_usd'],
 		$days_registered,
 		($fio_bps[$actor]['bp_rewards']/$days_registered),
 		$days_since_last_claim
