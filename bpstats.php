@@ -8,7 +8,13 @@ $client = new EOSClient('http://fio.greymass.com');
 
 $fio_bps = array();
 
-$token_price = 0.227;
+$file = "fio_price_data.txt";
+$token_prices_by_day = array();
+ini_set('auto_detect_line_endings', true);
+$fh = fopen($file, 'r');
+while (($line = fgetcsv($fh, 1000, "\t")) !== false) {
+	$token_prices_by_day[$line[0]] = str_replace("$", "", $line[4]);
+}
 
 $filename = "bp_data_cache.txt";
 $data = @file_get_contents($filename);
@@ -55,6 +61,7 @@ if ($data) {
 		$max_account_action_seq = 0;
 
 		$amount_earned = 0;
+		$amount_earned_usd = 0;
 		$offset += $limit;
 		while ($has_actions) {
 			print ".";
@@ -70,6 +77,13 @@ if ($data) {
 					&& !in_array($action->action_trace->trx_id, $processed_transaction_ids)) {
 					$currency = explode(" ", $action->action_trace->act->data->quantity);
 					$amount_earned += $currency[0];
+					$token_price = end($token_prices_by_day);
+					reset($token_prices_by_day);
+					$pay_date = date('Y-m-d',strtotime($action->action_trace->block_time));
+					if (array_key_exists($pay_date, $token_prices_by_day)) {
+						$token_price = $token_prices_by_day[$pay_date];
+					}
+					$amount_earned_usd += ($currency[0] * $token_price);
 					$processed_transaction_ids[] = $action->action_trace->trx_id;
 				}
 				if ($fio_bps[$actor]['reg_producer_time'] == 0
@@ -84,7 +98,7 @@ if ($data) {
 		}
 		print "\nAccount Actions: $max_account_action_seq\n";
 		$fio_bps[$actor]['bp_rewards'] = $amount_earned;
-		$fio_bps[$actor]['bp_rewards_usd'] = ($amount_earned * $token_price);
+		$fio_bps[$actor]['bp_rewards_usd'] = $amount_earned_usd;
 		//print_r($fio_bps[$actor]);
 	}
 
@@ -95,12 +109,12 @@ if ($data) {
 
 
 print "\n\n\n\n";
-print str_repeat("-",114) . "\n";
-$format = "%-12s: %-25s %2s: %21s %17s %13s %14s";
+print str_repeat("-",116) . "\n";
+$format = "%-12s: %-25s %2s: %21s %17s %15s %14s";
 printf($format,"owner","FIO Address","Rank","Claimed Rewards","Days Registered","Pay Per Day","Last Claimed");
-print "\n" . str_repeat("-",114) . "\n";
+print "\n" . str_repeat("-",116) . "\n";
 $rank = 1;
-$format = "%-12s: %-25s %2g: %9d ($%6d USD) %17s %13d %14s";
+$format = "%-12s: %-25s %2g: %9d ($%6d USD) %17s %6d ($%3d USD) %12s";
 foreach ($fio_bps as $actor => $bp) {
 	$datetime1 = date_create($fio_bps[$actor]['reg_producer_time']);
 	$datetime2 = date_create();
@@ -119,6 +133,7 @@ foreach ($fio_bps as $actor => $bp) {
                 $fio_bps[$actor]['bp_rewards_usd'],
 		$days_registered,
 		($fio_bps[$actor]['bp_rewards']/$days_registered),
+		($fio_bps[$actor]['bp_rewards_usd']/$days_registered),
 		$days_since_last_claim
 	);
 	print "\n";
